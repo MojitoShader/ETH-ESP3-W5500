@@ -1,13 +1,215 @@
-= Ethernet Library for Arduino =
+= ESP32 W5500 Ethernet Library =
 
-With the Arduino Ethernet Shield, this library allows an Arduino board to connect to the internet.
+A specialized fork of the Arduino Ethernet library specifically adapted to work with ESP32 microcontrollers and W5500 Ethernet controllers. This library solves compatibility issues where the standard Arduino Ethernet library fails to work with ESP32 boards.
 
-For more information about this library please visit us at
-https://www.arduino.cc/en/Reference/Ethernet
+== Overview ==
+
+This library enables ESP32 boards to connect to the internet using W5500 Ethernet controllers (such as those found on various Ethernet shields and breakout boards). It has been thoroughly tested with:
+
+* **TCP/IP connections** - Full client and server functionality
+* **MQTT communication** - Reliable messaging protocols
+* **UDP protocols** - Including multicast support
+* **DHCP** - Automatic IP configuration
+* **DNS** - Domain name resolution
+
+The library maintains full compatibility with the original Arduino Ethernet API while providing ESP32-specific optimizations and fixes.
+
+== Why This Fork? ==
+
+The standard Arduino Ethernet library has compatibility issues with ESP32 due to:
+
+* SPI timing differences between AVR and ESP32 architectures
+* GPIO pin mapping conflicts
+* Memory management differences
+* Clock speed and timing sensitivity with W5500 chips
+
+This fork addresses these issues specifically for ESP32 + W5500 combinations.
+
+== Supported Hardware ==
+
+=== ESP32 Boards ===
+* ESP32 Dev Kit (all variants)
+* ESP32 WROOM modules
+* ESP32 WROVER modules
+* Any ESP32-based board with SPI support
+
+=== W5500 Ethernet Controllers ===
+* W5500 Ethernet shields
+* W5500 breakout boards
+* Any W5500-based Ethernet module
+
+== Installation ==
+
+=== Arduino IDE ===
+1. Download this repository as a ZIP file
+2. In Arduino IDE: Sketch → Include Library → Add .ZIP Library
+3. Select the downloaded ZIP file
+4. Restart Arduino IDE
+
+=== PlatformIO ===
+Add to your `platformio.ini`:
+```ini
+lib_deps = 
+    https://github.com/yourusername/ETH-ESP3-W5500.git
+```
+
+== Hardware Setup ==
+
+=== Standard ESP32 to W5500 Wiring ===
+```
+ESP32    W5500
+-----    -----
+3.3V  →  3.3V/VCC
+GND   →  GND
+GPIO 18 → SCLK
+GPIO 19 → MISO
+GPIO 23 → MOSI
+GPIO 5  → CS
+```
+
+**Note:** You can use different CS pin - just specify it in `Ethernet.init(pin)`
+
+=== Power Considerations ===
+* W5500 modules typically require 3.3V
+* Ensure adequate power supply (some modules need 150mA+)
+* Use decoupling capacitors for stable operation
+
+== Quick Start ==
+
+=== Basic Web Server ===
+```cpp
+#include <SPI.h>
+#include <Ethernet.h>
+
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+IPAddress ip(192, 168, 1, 177);
+
+EthernetServer server(80);
+
+void setup() {
+  Serial.begin(9600);
+  
+  // Initialize with custom CS pin for ESP32
+  Ethernet.init(5);  // CS pin
+  
+  // Start Ethernet connection
+  Ethernet.begin(mac, ip);
+  server.begin();
+  
+  Serial.print("Server is at ");
+  Serial.println(Ethernet.localIP());
+}
+
+void loop() {
+  EthernetClient client = server.available();
+  if (client) {
+    Serial.println("New client");
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/html");
+    client.println();
+    client.println("Hello from ESP32 + W5500!");
+    client.stop();
+  }
+}
+```
+
+=== DHCP Configuration ===
+```cpp
+#include <SPI.h>
+#include <Ethernet.h>
+
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+
+void setup() {
+  Serial.begin(9600);
+  Ethernet.init(5);  // CS pin
+  
+  if (Ethernet.begin(mac) == 0) {
+    Serial.println("Failed to configure Ethernet using DHCP");
+    while(true);
+  }
+  
+  Serial.print("IP address: ");
+  Serial.println(Ethernet.localIP());
+}
+```
+
+== API Reference ==
+
+See link:FunctionReference.md[Function Reference] for complete API documentation.
+
+== Examples ==
+
+The `examples/` folder contains various usage examples:
+
+* **WebServer** - Basic HTTP server
+* **WebClient** - HTTP client requests  
+* **ChatServer** - Multi-client TCP server
+* **UdpNtpClient** - NTP time synchronization
+* **DhcpAddressPrinter** - DHCP configuration example
+* **And more...**
+
+== Troubleshooting ==
+
+=== Common Issues ===
+
+**Connection fails:**
+* Check wiring, especially CS pin
+* Verify 3.3V power supply
+* Ensure proper ground connections
+* Try different CS pin and update `Ethernet.init(pin)`
+
+**Intermittent connectivity:**
+* Add decoupling capacitors
+* Check SPI clock speed (library uses 14MHz by default)
+* Verify cable connections
+
+**DHCP fails:**
+* Check network configuration
+* Try manual IP configuration first
+* Increase DHCP timeout: `Ethernet.begin(mac, 60000)`
+
+=== Debug Tips ===
+```cpp
+// Check hardware detection
+if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+  Serial.println("Ethernet shield was not found");
+}
+
+// Check link status
+if (Ethernet.linkStatus() == LinkOFF) {
+  Serial.println("Ethernet cable is not connected");
+}
+```
+
+== Performance Notes ==
+
+* Maximum theoretical throughput depends on SPI speed and ESP32 processing
+* TCP performance is optimized for typical internet latency
+* For local LAN high-speed applications, consider increasing SPI clock in `w5100.h`
+* UDP is generally faster than TCP for time-sensitive applications
+
+== Contributing ==
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Test thoroughly on ESP32 hardware
+4. Submit a pull request with clear description
+
+== Version History ==
+
+* **2.1.0** - ESP32 compatibility fixes, MQTT tested
+* **2.0.0** - Based on Arduino Ethernet Library 2.0.0
+* **1.x.x** - Legacy versions
 
 == License ==
 
+Based on the original Arduino Ethernet Library.
+
 Copyright (c) 2010 Arduino LLC. All right reserved.
+ESP32 adaptations and modifications by [Your Name].
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
